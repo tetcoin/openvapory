@@ -320,7 +320,11 @@ enum EthereumBuiltin {
 	/// alt_bn128_pairing
 	Bn128Pairing(Bn128Pairing),
 	/// blake2_f (The Blake2 compression function F, EIP-152)
-	Blake2F(Blake2F)
+	Blake2F(Blake2F),
+	/// parse_substrate_header
+	ParseSubstrateHeader(ParseSubstrateHeader),
+	/// verify_finality_proof
+	VerifySubstrateFinalityProof(VerifySubstrateFinalityProof),
 }
 
 impl FromStr for EthereumBuiltin {
@@ -337,6 +341,8 @@ impl FromStr for EthereumBuiltin {
 			"alt_bn128_mul" => Ok(EthereumBuiltin::Bn128Mul(Bn128Mul)),
 			"alt_bn128_pairing" => Ok(EthereumBuiltin::Bn128Pairing(Bn128Pairing)),
 			"blake2_f" => Ok(EthereumBuiltin::Blake2F(Blake2F)),
+			"parse_substrate_header" => Ok(EthereumBuiltin::ParseSubstrateHeader(ParseSubstrateHeader)),
+			"verify_substrate_finality_proof" => Ok(EthereumBuiltin::VerifySubstrateFinalityProof(VerifySubstrateFinalityProof)),
 			_ => return Err(EthcoreError::Msg(format!("invalid builtin name: {}", name))),
 		}
 	}
@@ -354,6 +360,8 @@ impl Implementation for EthereumBuiltin {
 			EthereumBuiltin::Bn128Mul(inner) => inner.execute(input, output),
 			EthereumBuiltin::Bn128Pairing(inner) => inner.execute(input, output),
 			EthereumBuiltin::Blake2F(inner) => inner.execute(input, output),
+			EthereumBuiltin::ParseSubstrateHeader(inner) => inner.execute(input, output),
+			EthereumBuiltin::VerifySubstrateFinalityProof(inner) => inner.execute(input, output),
 		}
 	}
 }
@@ -393,6 +401,14 @@ pub struct Bn128Pairing;
 #[derive(Debug)]
 /// The Blake2F builtin
 pub struct Blake2F;
+
+#[derive(Debug)]
+/// The ParseSubstrateHeader builtin
+pub struct ParseSubstrateHeader;
+
+#[derive(Debug)]
+/// The VerifySubstrateFinalityProof builtin
+pub struct VerifySubstrateFinalityProof;
 
 impl Implementation for Identity {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
@@ -747,6 +763,44 @@ impl Bn128Pairing {
 		output.write(0, &buf);
 
 		Ok(())
+	}
+}
+
+impl Implementation for ParseSubstrateHeader {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		let header = ethereum_contract_builtin::parse_substrate_header(input)
+			.map_err(|_error| "Failed to parse Substrate header")?;
+
+		let mut raw_number = [0u8; 32];
+		U256::from(header.number).to_big_endian(&mut raw_number);
+
+		output.write(0, &header.hash[..]);
+		output.write(0x20, &header.parent_hash[..]);
+		output.write(0x40, &raw_number);
+		match header.signal {
+			Some(signal) => {
+				let mut raw_signal_delay = [0u8; 32];
+				U256::from(signal.delay).to_big_endian(&mut raw_signal_delay);
+				output.write(0x60, &raw_signal_delay);
+
+				let mut raw_signal_validators_size = [0u8; 32];
+				U256::from(signal.validators.len() as u64).to_big_endian(&mut raw_signal_validators_size);
+				output.write(0x80, &raw_signal_validators_size);
+			},
+			None => {
+				let raw_zero = [0u8; 32];
+				output.write(0x60, &raw_zero);
+				output.write(0x80, &raw_zero);
+			},
+		}
+
+		Ok(())
+	}
+}
+
+impl Implementation for VerifySubstrateFinalityProof {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		unimplemented!()
 	}
 }
 

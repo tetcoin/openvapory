@@ -12,11 +12,13 @@ common-types = { path = "../types" }
 eip-152 = { path = "../../util/EIP-152" }
 ethereum-types = "0.8.0"
 ethjson = { path = "../../json" }
+hex = "0.4"
 keccak-hash = "0.4.0"
 log = "0.4"
 num = { version = "0.1", default-features = false, features = ["bigint"] }
 parity-bytes = "0.1"
 parity-crypto = { version = "0.5.0", features = ["publickey"] }
+ethereum-contract-builtin = { package = "ethereum-contract-builtin", path = "../../../parity-bridges-common/modules/ethereum-contract/builtin" }
 
 [dev-dependencies]
 hex-literal = "0.2.1"
