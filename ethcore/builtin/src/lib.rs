@@ -323,7 +323,9 @@ enum EthereumBuiltin {
 	Blake2F(Blake2F),
 	/// parse_substrate_header
 	ParseSubstrateHeader(ParseSubstrateHeader),
-	/// verify_finality_proof
+	/// get_substrate_header_signal
+	GetSubstrateHeaderSignal(GetSubstrateHeaderSignal),
+	/// verify_substrate_finality_proof
 	VerifySubstrateFinalityProof(VerifySubstrateFinalityProof),
 }
 
@@ -342,6 +344,7 @@ impl FromStr for EthereumBuiltin {
 			"alt_bn128_pairing" => Ok(EthereumBuiltin::Bn128Pairing(Bn128Pairing)),
 			"blake2_f" => Ok(EthereumBuiltin::Blake2F(Blake2F)),
 			"parse_substrate_header" => Ok(EthereumBuiltin::ParseSubstrateHeader(ParseSubstrateHeader)),
+			"get_substrate_header_signal" => Ok(EthereumBuiltin::GetSubstrateHeaderSignal(GetSubstrateHeaderSignal)),
 			"verify_substrate_finality_proof" => Ok(EthereumBuiltin::VerifySubstrateFinalityProof(VerifySubstrateFinalityProof)),
 			_ => return Err(EthcoreError::Msg(format!("invalid builtin name: {}", name))),
 		}
@@ -361,6 +364,7 @@ impl Implementation for EthereumBuiltin {
 			EthereumBuiltin::Bn128Pairing(inner) => inner.execute(input, output),
 			EthereumBuiltin::Blake2F(inner) => inner.execute(input, output),
 			EthereumBuiltin::ParseSubstrateHeader(inner) => inner.execute(input, output),
+			EthereumBuiltin::GetSubstrateHeaderSignal(inner) => inner.execute(input, output),
 			EthereumBuiltin::VerifySubstrateFinalityProof(inner) => inner.execute(input, output),
 		}
 	}
@@ -405,6 +409,10 @@ pub struct Blake2F;
 #[derive(Debug)]
 /// The ParseSubstrateHeader builtin
 pub struct ParseSubstrateHeader;
+
+#[derive(Debug)]
+/// The GetSubstrateHeaderSignal builtin
+pub struct GetSubstrateHeaderSignal;
 
 #[derive(Debug)]
 /// The VerifySubstrateFinalityProof builtin
@@ -772,7 +780,9 @@ impl Implementation for ParseSubstrateHeader {
 			.map_err(|_error| "Failed to parse Substrate header")?;
 
 		let mut raw_number = [0u8; 32];
-		U256::from(header.number).to_big_endian(&mut raw_number);
+		ethereum_contract_builtin::from_substrate_block_number(header.number)
+			.map_err(|_| "Failed to serialize Substrate block number")?
+			.to_big_endian(&mut raw_number);
 
 		output.write(0, &header.hash[..]);
 		output.write(0x20, &header.parent_hash[..]);
@@ -780,11 +790,14 @@ impl Implementation for ParseSubstrateHeader {
 		match header.signal {
 			Some(signal) => {
 				let mut raw_signal_delay = [0u8; 32];
-				U256::from(signal.delay).to_big_endian(&mut raw_signal_delay);
+				ethereum_contract_builtin::from_substrate_block_number(signal.delay)
+					.map_err(|_| "Failed to serialize Substrate signal delay")?
+					.to_big_endian(&mut raw_signal_delay);
 				output.write(0x60, &raw_signal_delay);
 
 				let mut raw_signal_validators_size = [0u8; 32];
-				U256::from(signal.validators.len() as u64).to_big_endian(&mut raw_signal_validators_size);
+				U256::from(signal.validators.len() as u64)
+					.to_big_endian(&mut raw_signal_validators_size);
 				output.write(0x80, &raw_signal_validators_size);
 			},
 			None => {
@@ -798,9 +811,57 @@ impl Implementation for ParseSubstrateHeader {
 	}
 }
 
-impl Implementation for VerifySubstrateFinalityProof {
+impl Implementation for GetSubstrateHeaderSignal {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
-		unimplemented!()
+		let header = ethereum_contract_builtin::parse_substrate_header(input)
+			.map_err(|_error| "Failed to parse Substrate header")?;
+
+		match header.signal {
+			Some(signal) => {
+				output.write(0, &signal.validators);
+				Ok(())
+			},
+			None => Err("Signal is missing from Substrate header"),
+		}
+	}
+}
+
+impl Implementation for VerifySubstrateFinalityProof {
+	fn execute(&self, input: &[u8], _output: &mut BytesRef) -> Result<(), &'static str> {
+		const DECODE_PROOF: &'static str = "ethabi::encode ensures that arguments are of given type; qed";
+		
+		let args = ethabi::decode(
+			&[
+				ethabi::ParamType::Uint(256),
+				ethabi::ParamType::FixedBytes(32),
+				ethabi::ParamType::Uint(64),
+				ethabi::ParamType::Bytes,
+				ethabi::ParamType::Bytes,
+			],
+			input,
+		).map_err(|_| "Failed to decode arguments")?;
+
+		let finality_target_number = ethereum_contract_builtin::to_substrate_block_number(
+			args[0].clone().to_uint().expect(DECODE_PROOF),
+		).map_err(|_| "Failed to parse Substrate block number")?;
+		let mut finality_target_hash = [0u8; 32];
+		finality_target_hash.copy_from_slice(&args[1].clone().to_fixed_bytes().expect(DECODE_PROOF));
+		let finality_target_hash = finality_target_hash.into();
+		let best_set_id = args[2].clone().to_uint().expect(DECODE_PROOF);
+		let best_set_id = match best_set_id == best_set_id.low_u64().into() {
+			true => best_set_id.low_u64(),
+			false => return Err("Invalid best set id"),
+		};
+		let raw_best_set = args[3].clone().to_bytes().expect(DECODE_PROOF);
+		let raw_finality_proof = args[4].clone().to_bytes().expect(DECODE_PROOF);
+
+		ethereum_contract_builtin::verify_substrate_finality_proof(
+			finality_target_number,
+			finality_target_hash,
+			best_set_id,
+			&raw_best_set,
+			&raw_finality_proof,
+		).map_err(|_| "Invalid finality proof provided")
 	}
 }
 
