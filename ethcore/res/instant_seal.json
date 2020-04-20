@@ -104,6 +104,17 @@
 		},
 		"0x0000000000000000000000000000000000000011": {
 			"builtin": {
+				"name": "get_substrate_header_signal",
+				"pricing": {
+					"linear": {
+						"base": 3000,
+						"word": 0
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000012": {
+			"builtin": {
 				"name": "verify_substrate_finality_proof",
 				"pricing": {
 					"linear": {
