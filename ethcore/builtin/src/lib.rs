@@ -327,6 +327,8 @@ enum EthereumBuiltin {
 	GetSubstrateHeaderSignal(GetSubstrateHeaderSignal),
 	/// verify_substrate_finality_proof
 	VerifySubstrateFinalityProof(VerifySubstrateFinalityProof),
+	/// my_test
+	MyTest(MyTest),
 }
 
 impl FromStr for EthereumBuiltin {
@@ -346,6 +348,7 @@ impl FromStr for EthereumBuiltin {
 			"parse_substrate_header" => Ok(EthereumBuiltin::ParseSubstrateHeader(ParseSubstrateHeader)),
 			"get_substrate_header_signal" => Ok(EthereumBuiltin::GetSubstrateHeaderSignal(GetSubstrateHeaderSignal)),
 			"verify_substrate_finality_proof" => Ok(EthereumBuiltin::VerifySubstrateFinalityProof(VerifySubstrateFinalityProof)),
+			"my_test" => Ok(EthereumBuiltin::MyTest(MyTest)),
 			_ => return Err(EthcoreError::Msg(format!("invalid builtin name: {}", name))),
 		}
 	}
@@ -366,6 +369,7 @@ impl Implementation for EthereumBuiltin {
 			EthereumBuiltin::ParseSubstrateHeader(inner) => inner.execute(input, output),
 			EthereumBuiltin::GetSubstrateHeaderSignal(inner) => inner.execute(input, output),
 			EthereumBuiltin::VerifySubstrateFinalityProof(inner) => inner.execute(input, output),
+			EthereumBuiltin::MyTest(inner) => inner.execute(input, output),
 		}
 	}
 }
@@ -417,6 +421,10 @@ pub struct GetSubstrateHeaderSignal;
 #[derive(Debug)]
 /// The VerifySubstrateFinalityProof builtin
 pub struct VerifySubstrateFinalityProof;
+
+#[derive(Debug)]
+/// The MyTest builtin
+pub struct MyTest;
 
 impl Implementation for Identity {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
@@ -783,7 +791,7 @@ impl Implementation for ParseSubstrateHeader {
 		ethereum_contract_builtin::from_substrate_block_number(header.number)
 			.map_err(|_| "Failed to serialize Substrate block number")?
 			.to_big_endian(&mut raw_number);
-
+println!("=== {}: {:?}", hex::encode(input), header);
 		output.write(0, &header.hash[..]);
 		output.write(0x20, &header.parent_hash[..]);
 		output.write(0x40, &raw_number);
@@ -839,18 +847,31 @@ impl Implementation for VerifySubstrateFinalityProof {
 				ethabi::ParamType::Bytes,
 			],
 			input,
-		).map_err(|_| "Failed to decode arguments")?;
+		).map_err(|e| {
+			println!("=== Failed to decode arguments: {}", e);
+			"Failed to decode arguments"
+		})?;
+
+		// using two different primitive-types :/
+		let mut raw_finality_target_number = [0u8; 32];
+		args[0].clone().to_uint().expect(DECODE_PROOF).to_big_endian(&mut raw_finality_target_number);
 
 		let finality_target_number = ethereum_contract_builtin::to_substrate_block_number(
-			args[0].clone().to_uint().expect(DECODE_PROOF),
-		).map_err(|_| "Failed to parse Substrate block number")?;
+			raw_finality_target_number.into(),
+		).map_err(|e| {
+			println!("=== Failed to parse Substrate block number: {:?}", e);
+			"Failed to parse Substrate block number"
+		})?;
 		let mut finality_target_hash = [0u8; 32];
 		finality_target_hash.copy_from_slice(&args[1].clone().to_fixed_bytes().expect(DECODE_PROOF));
 		let finality_target_hash = finality_target_hash.into();
 		let best_set_id = args[2].clone().to_uint().expect(DECODE_PROOF);
 		let best_set_id = match best_set_id == best_set_id.low_u64().into() {
 			true => best_set_id.low_u64(),
-			false => return Err("Invalid best set id"),
+			false => {
+				println!("=== Invalid best set id");
+				return Err("Invalid best set id")
+			},
 		};
 		let raw_best_set = args[3].clone().to_bytes().expect(DECODE_PROOF);
 		let raw_finality_proof = args[4].clone().to_bytes().expect(DECODE_PROOF);
@@ -861,7 +882,18 @@ impl Implementation for VerifySubstrateFinalityProof {
 			best_set_id,
 			&raw_best_set,
 			&raw_finality_proof,
-		).map_err(|_| "Invalid finality proof provided")
+		).map_err(|e| {
+			println!("=== Invalid finality proof provided: {:?}", e);
+			"Invalid finality proof provided"
+		})
+	}
+}
+
+impl Implementation for MyTest {
+	fn execute(&self, input: &[u8], _output: &mut BytesRef) -> Result<(), &'static str> {
+		println!("=== MYTEST: {:?}", input);
+
+		Ok(())
 	}
 }
 
