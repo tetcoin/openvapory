@@ -791,7 +791,7 @@ impl Implementation for ParseSubstrateHeader {
 		ethereum_contract_builtin::from_substrate_block_number(header.number)
 			.map_err(|_| "Failed to serialize Substrate block number")?
 			.to_big_endian(&mut raw_number);
-println!("=== {}: {:?}", hex::encode(input), header);
+
 		output.write(0, &header.hash[..]);
 		output.write(0x20, &header.parent_hash[..]);
 		output.write(0x40, &raw_number);
@@ -837,7 +837,7 @@ impl Implementation for GetSubstrateHeaderSignal {
 impl Implementation for VerifySubstrateFinalityProof {
 	fn execute(&self, input: &[u8], _output: &mut BytesRef) -> Result<(), &'static str> {
 		const DECODE_PROOF: &'static str = "ethabi::encode ensures that arguments are of given type; qed";
-		
+
 		let args = ethabi::decode(
 			&[
 				ethabi::ParamType::Uint(256),
@@ -847,21 +847,22 @@ impl Implementation for VerifySubstrateFinalityProof {
 				ethabi::ParamType::Bytes,
 			],
 			input,
-		).map_err(|e| {
-			println!("=== Failed to decode arguments: {}", e);
+		).map_err(|err| {
+			warn!(
+				target: "bridge-builtin",
+				"Failed to decode verify_substrate_finality_proof arguments: {}",
+				err,
+			);
+
 			"Failed to decode arguments"
 		})?;
-
 		// using two different primitive-types :/
 		let mut raw_finality_target_number = [0u8; 32];
 		args[0].clone().to_uint().expect(DECODE_PROOF).to_big_endian(&mut raw_finality_target_number);
-
 		let finality_target_number = ethereum_contract_builtin::to_substrate_block_number(
 			raw_finality_target_number.into(),
-		).map_err(|e| {
-			println!("=== Failed to parse Substrate block number: {:?}", e);
-			"Failed to parse Substrate block number"
-		})?;
+		).map_err(|_| "Failed to parse Substrate block number")?;
+
 		let mut finality_target_hash = [0u8; 32];
 		finality_target_hash.copy_from_slice(&args[1].clone().to_fixed_bytes().expect(DECODE_PROOF));
 		let finality_target_hash = finality_target_hash.into();
@@ -869,8 +870,13 @@ impl Implementation for VerifySubstrateFinalityProof {
 		let best_set_id = match best_set_id == best_set_id.low_u64().into() {
 			true => best_set_id.low_u64(),
 			false => {
-				println!("=== Invalid best set id");
-				return Err("Invalid best set id")
+				warn!(
+					target: "bridge-builtin",
+					"Failed to decode best_set_id: {} != {}",
+					best_set_id,
+					best_set_id.low_u64(),
+				);
+				return Err("Invalid best set id");
 			},
 		};
 		let raw_best_set = args[3].clone().to_bytes().expect(DECODE_PROOF);
@@ -882,10 +888,7 @@ impl Implementation for VerifySubstrateFinalityProof {
 			best_set_id,
 			&raw_best_set,
 			&raw_finality_proof,
-		).map_err(|e| {
-			println!("=== Invalid finality proof provided: {:?}", e);
-			"Invalid finality proof provided"
-		})
+		).map_err(|_| "Invalid finality proof provided")
 	}
 }
 
