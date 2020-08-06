@@ -46,7 +46,7 @@ use types::{
 use parity_rpc::{
 	Origin, Metadata, NetworkSettings, informant, PubSubSession, FutureResult, FutureResponse, FutureOutput
 };
-use updater::{UpdatePolicy, Updater};
+use updater::{UpdateFilter, UpdatePolicy, Updater};
 use parity_version::version;
 use ethcore_private_tx::{ProviderConfig, EncryptorConfig, SecretStoreEncryptor};
 use params::{
@@ -137,6 +137,7 @@ pub struct RunCmd {
 	pub on_demand_request_backoff_max: Option<u64>,
 	pub on_demand_request_backoff_rounds_max: Option<usize>,
 	pub on_demand_request_consecutive_failures: Option<usize>,
+	pub sync_until: Option<u64>,
 }
 
 // node info fetcher for the local store.
@@ -538,6 +539,7 @@ fn execute_impl<Cr, Rr>(
 		cmd.pruning_memory,
 		cmd.check_seal,
 		cmd.max_round_blocks_to_import,
+		cmd.sync_until,
 	);
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
@@ -639,10 +641,14 @@ fn execute_impl<Cr, Rr>(
 			.map_err(|e| format!("Stratum start error: {:?}", e))?;
 	}
 
-	let (private_tx_sync, private_state) = match cmd.private_tx_enabled {
-		true => (Some(private_tx_service.clone() as Arc<dyn PrivateTxHandler>), Some(private_tx_provider.private_state_db())),
-		false => (None, None),
-	};
+	let mut private_tx_sync = None;
+	let mut private_state = None;
+	
+	if cmd.private_tx_enabled {
+		warn!("Private transactions support is deprecated and may be removed in a future release. Please see #11695 for details:\nhttps://github.com/openethereum/openethereum/issues/11695");
+		private_tx_sync = Some(private_tx_service.clone() as Arc<dyn PrivateTxHandler>);
+		private_state = Some(private_tx_provider.private_state_db());
+	}
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify, priority_tasks) = modules::sync(
@@ -699,6 +705,10 @@ fn execute_impl<Cr, Rr>(
 	);
 
 	// the updater service
+	if update_policy.filter != UpdateFilter::None {
+		warn!("Updater is deprecated and may be removed in a future release. Please see #11696 for details:\nhttps://github.com/openethereum/openethereum/issues/11696");
+	}
+
 	let updater = Updater::new(
 		&Arc::downgrade(&(service.client() as Arc<dyn BlockChainClient>)),
 		&Arc::downgrade(&sync_provider),
@@ -790,21 +800,19 @@ fn execute_impl<Cr, Rr>(
 	});
 
 	// the watcher must be kept alive.
-	let watcher = match cmd.snapshot_conf.no_periodic {
-		true => None,
-		false => {
-			let sync = sync_provider.clone();
-			let watcher = Arc::new(snapshot::Watcher::new(
-				service.client(),
-				move || sync.is_major_syncing(),
-				service.io().channel(),
-				SNAPSHOT_PERIOD,
-				SNAPSHOT_HISTORY,
-			));
+	let mut watcher = None;
+	if cmd.snapshot_conf.enable {
+		let sync = sync_provider.clone();
+		let w = Arc::new(snapshot::Watcher::new(
+			service.client(),
+			move || sync.is_major_syncing(),
+			service.io().channel(),
+			SNAPSHOT_PERIOD,
+			SNAPSHOT_HISTORY,
+		));
 
-			service.add_notify(watcher.clone());
-			Some(watcher)
-		},
+		service.add_notify(w.clone());
+		watcher = Some(w);
 	};
 
 	client.set_exit_handler(on_client_rq);
@@ -925,6 +933,7 @@ pub fn execute<Cr, Rr>(
 		Rr: Fn() + 'static + Send
 {
 	if cmd.light {
+		warn!("Light client is deprecated and may be removed in a future release. Please see #11681 for details:\nhttps://github.com/openethereum/openethereum/issues/11681");
 		execute_light_impl(cmd, logger, on_client_rq)
 	} else {
 		execute_impl(cmd, logger, on_client_rq, on_updater_rq)

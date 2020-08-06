@@ -33,7 +33,6 @@ use self::kvdb_rocksdb::{Database, DatabaseConfig};
 
 use cache::CacheConfig;
 
-mod blooms;
 mod migration;
 mod helpers;
 
@@ -41,7 +40,9 @@ pub use self::migration::migrate;
 
 struct AppDB {
 	key_value: Arc<dyn KeyValueDB>,
+	// Header bloom
 	blooms: blooms_db::Database,
+	// Trace bloom
 	trace_blooms: blooms_db::Database,
 }
 

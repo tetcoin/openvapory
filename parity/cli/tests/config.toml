@@ -3,6 +3,7 @@ mode = "dark"
 mode_timeout = 15
 mode_alarm = 10
 chain = "./chain.json"
+sync_until = 123
 
 [account]
 unlock = ["0x1", "0x2", "0x3"]
@@ -75,7 +76,7 @@ on_demand_request_backoff_rounds_max = 10
 on_demand_request_consecutive_failures = 1
 
 [snapshots]
-disable_periodic = true
+enable = false
 
 [misc]
 logging = "own_tx=trace"

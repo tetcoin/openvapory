@@ -45,6 +45,20 @@ macro_rules! bundle_test_spec {
 	}
 }
 
+macro_rules! bundle_custom_spec {
+	($($path: expr => $name: ident), *) => {
+		$(
+			/// Bundled test spec
+			pub fn $name() -> crate::spec::Spec {
+				crate::spec::Spec::load(
+					&::std::env::temp_dir(),
+					include_bytes!(concat!("../../res/", $path, ".json")) as &[u8]
+				).expect(concat!("Chain spec ", $path, " is invalid."))
+			}
+		)*
+	}
+}
+
 macro_rules! bundle_test_machine {
 	($($path: expr => $name: ident), *) => {
 		$(
@@ -60,68 +74,72 @@ macro_rules! bundle_test_machine {
 
 bundle_release_spec! {
 	"ethereum/callisto" => new_callisto,
-	"ethereum/classic" => new_classic,
 	"ethereum/ellaism" => new_ellaism,
-	"ethereum/evantestcore" => new_evantestcore,
+	"ethereum/ethercore" => new_ethercore,
 	"ethereum/evancore" => new_evancore,
+	"ethereum/evantestcore" => new_evantestcore,
+	"ethereum/ewc" => new_ewc,
 	"ethereum/expanse" => new_expanse,
 	"ethereum/foundation" => new_foundation,
 	"ethereum/goerli" => new_goerli,
-	"ethereum/kotti" => new_kotti,
 	"ethereum/kovan" => new_kovan,
 	"ethereum/mix" => new_mix,
-	"ethereum/mordor" => new_mordor,
 	"ethereum/musicoin" => new_musicoin,
 	"ethereum/poacore" => new_poanet,
-	"ethereum/xdai" => new_xdai,
-	"ethereum/ethercore" => new_ethercore,
 	"ethereum/poasokol" => new_sokol,
 	"ethereum/rinkeby" => new_rinkeby,
 	"ethereum/ropsten" => new_ropsten,
 	"ethereum/volta" => new_volta,
-	"ethereum/ewc" => new_ewc
+	"ethereum/xdai" => new_xdai,
+	"ethereum/yolov1" => new_yolov1
 }
 
 bundle_test_spec! {
+	"ethereum/test-specs/berlin_test" => new_berlin_test,
+	"ethereum/test-specs/byzantium_test" => new_byzantium_test,
+	"ethereum/test-specs/constantinople_test" => new_constantinople_test,
+	"ethereum/test-specs/eip150_test" => new_eip150_test,
+	"ethereum/test-specs/eip161_test" => new_eip161_test,
+	"ethereum/test-specs/eip210_test" => new_eip210_test,
+	"ethereum/test-specs/frontier_like_test" => new_mainnet_like,
+	"ethereum/test-specs/frontier_test" => new_frontier_test,
+	"ethereum/test-specs/homestead_test" => new_homestead_test,
+	"ethereum/test-specs/istanbul_test" => new_istanbul_test,
+	"ethereum/test-specs/kovan_wasm_test" => new_kovan_wasm_test,
+	"ethereum/test-specs/mcip3_test" => new_mcip3_test,
+	"ethereum/test-specs/constantinople_fix_test" => new_constantinople_fix_test,
+	"ethereum/test-specs/eip158_to_byzantiumat5_test" => new_eip158_to_byzantiumat5_test,
+	"ethereum/test-specs/byzantium_to_constantinoplefixat5_test" => new_byzantium_to_constantinoplefixat5_test
+}
+
+bundle_custom_spec! {
 	"authority_round" => new_test_round,
 	"authority_round_block_reward_contract" => new_test_round_block_reward_contract,
 	"authority_round_empty_steps" => new_test_round_empty_steps,
 	"authority_round_randomness_contract" => new_test_round_randomness_contract,
 	"constructor" => new_test_constructor,
-	"ethereum/byzantium_test" => new_byzantium_test,
-	"ethereum/constantinople_test" => new_constantinople_test,
-	"ethereum/istanbul_test" => new_istanbul_test,
-	"ethereum/eip150_test" => new_eip150_test,
-	"ethereum/eip161_test" => new_eip161_test,
-	"ethereum/eip210_test" => new_eip210_test,
-	"ethereum/frontier_like_test" => new_mainnet_like,
-	"ethereum/frontier_test" => new_frontier_test,
-	"ethereum/homestead_test" => new_homestead_test,
-	"ethereum/kovan_wasm_test" => new_kovan_wasm_test,
-	"ethereum/mcip3_test" => new_mcip3_test,
-	"ethereum/mordor" => new_mordor_test,
-	"ethereum/ropsten" => new_ropsten_test,
-	"ethereum/st_peters_test" => new_constantinople_fix_test,
-	"ethereum/transition_test" => new_transition_test,
 	"instant_seal" => new_instant,
 	"null" => new_null,
 	"null_morden" => new_test,
-	"null_morden_with_reward" => new_test_with_reward,
 	"null_morden_with_finality" => new_test_with_finality,
+	"null_morden_with_reward" => new_test_with_reward,
 	"validator_contract" => new_validator_contract,
 	"validator_multi" => new_validator_multi,
 	"validator_safe_contract" => new_validator_safe_contract
 }
 
 bundle_test_machine! {
-	"ethereum/byzantium_test" => new_byzantium_test_machine,
-	"ethereum/constantinople_test" => new_constantinople_test_machine,
-	"ethereum/istanbul_test" => new_istanbul_test_machine,
-	"ethereum/eip210_test" => new_eip210_test_machine,
-	"ethereum/frontier_test" => new_frontier_test_machine,
-	"ethereum/homestead_test" => new_homestead_test_machine,
-	"ethereum/kovan_wasm_test" => new_kovan_wasm_test_machine,
-	"null_morden" => new_test_machine
+	"null_morden" => new_test_machine,
+	"ethereum/test-specs/berlin_test" => new_berlin_test_machine,
+	"ethereum/test-specs/byzantium_test" => new_byzantium_test_machine,
+	"ethereum/test-specs/constantinople_test" => new_constantinople_test_machine,
+	"ethereum/test-specs/eip210_test" => new_eip210_test_machine,
+	"ethereum/test-specs/frontier_test" => new_frontier_test_machine,
+	"ethereum/test-specs/homestead_test" => new_homestead_test_machine,
+	"ethereum/test-specs/istanbul_test" => new_istanbul_test_machine,
+	"ethereum/test-specs/kovan_wasm_test" => new_kovan_wasm_test_machine,
+	"ethereum/test-specs/mcip3_test" => new_mcip3_test_machine,
+	"ethereum/test-specs/constantinople_fix_test" => new_constantinople_fix_test_machine
 }
 
 #[cfg(test)]
@@ -132,7 +150,7 @@ mod tests {
 	use tempfile::TempDir;
 	use ethcore::test_helpers::get_temp_state_db;
 
-	use super::{new_ropsten, new_foundation};
+	use super::{new_ropsten, new_foundation, new_berlin_test_machine};
 
 	#[test]
 	fn ensure_db_good() {
@@ -168,5 +186,10 @@ mod tests {
 		assert_eq!(frontier.state_root, "d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544".parse().unwrap());
 		let genesis = frontier.genesis_block();
 		assert_eq!(view!(BlockView, &genesis).header_view().hash(), "d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3".parse().unwrap());
+	}
+
+	#[test]
+	fn berlin_test_spec() {
+		let _ = new_berlin_test_machine();
 	}
 }

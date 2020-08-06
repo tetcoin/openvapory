@@ -27,9 +27,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use keccak_hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use account_db::{AccountDB, AccountDBMut};
-use account_state::Account as StateAccount;
 use blockchain::{BlockChain, BlockProvider};
-use bloom_journal::Bloom;
 use bytes::Bytes;
 use common_types::{
 	ids::BlockId,
@@ -39,7 +37,7 @@ use common_types::{
 };
 use crossbeam_utils::thread;
 use engine::Engine;
-use ethereum_types::{H256, U256};
+use ethereum_types::H256;
 use ethtrie::{TrieDB, TrieDBMut};
 use hash_db::HashDB;
 use journaldb::{self, Algorithm, JournalDB};
@@ -50,8 +48,6 @@ use log::{debug, info, trace};
 use num_cpus;
 use rand::{Rng, rngs::OsRng};
 use rlp::{RlpStream, Rlp};
-use snappy;
-use state_db::StateDB;
 use trie_db::{Trie, TrieMut};
 
 pub use self::consensus::*;
@@ -99,8 +95,8 @@ const MAX_SNAPSHOT_SUBPARTS: usize = 256;
 /// Configuration for the Snapshot service
 #[derive(Debug, Clone, PartialEq)]
 pub struct SnapshotConfiguration {
-	/// If `true`, no periodic snapshots will be created
-	pub no_periodic: bool,
+	/// Enable creation of periodic snapshots
+	pub enable: bool,
 	/// Number of threads for creating snapshots
 	pub processing_threads: usize,
 }
@@ -108,7 +104,7 @@ pub struct SnapshotConfiguration {
 impl Default for SnapshotConfiguration {
 	fn default() -> Self {
 		SnapshotConfiguration {
-			no_periodic: false,
+			enable: false,
 			processing_threads: ::std::cmp::max(1, num_cpus::get_physical() / 2),
 		}
 	}
@@ -205,11 +201,11 @@ pub fn chunk_secondary<'a>(
 	progress: &'a RwLock<Progress>
 ) -> Result<Vec<H256>, Error> {
 	let mut chunk_hashes = Vec::new();
-	let mut snappy_buffer = vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)];
+	let mut snappy_buffer = vec![0; snap::raw::max_compress_len(PREFERRED_CHUNK_SIZE)];
 
 	{
 		let mut chunk_sink = |raw_data: &[u8]| {
-			let compressed_size = snappy::compress_into(raw_data, &mut snappy_buffer);
+			let compressed_size = snap::raw::Encoder::new().compress(raw_data, &mut snappy_buffer)?;
 			let compressed = &snappy_buffer[..compressed_size];
 			let hash = keccak(&compressed);
 			let size = compressed.len();
@@ -268,7 +264,11 @@ impl<'a> StateChunker<'a> {
 
 		let raw_data = stream.out();
 
-		let compressed_size = snappy::compress_into(&raw_data, &mut self.snappy_buffer);
+		let required = snap::raw::max_compress_len(raw_data.len());
+		if self.snappy_buffer.len() < required {
+			self.snappy_buffer.resize_with(required, Default::default);
+		}
+		let compressed_size = snap::raw::Encoder::new().compress(&raw_data, &mut self.snappy_buffer)?;
 		let compressed = &self.snappy_buffer[..compressed_size];
 		let hash = keccak(&compressed);
 
@@ -310,7 +310,7 @@ pub fn chunk_state<'a>(
 		hashes: Vec::new(),
 		rlps: Vec::new(),
 		cur_size: 0,
-		snappy_buffer: vec![0; snappy::max_compressed_len(PREFERRED_CHUNK_SIZE)],
+		snappy_buffer: vec![0; snap::raw::max_compress_len(PREFERRED_CHUNK_SIZE)],
 		writer,
 		progress,
 		thread_idx,
@@ -378,7 +378,6 @@ pub struct StateRebuilder {
 	state_root: H256,
 	known_code: HashMap<H256, H256>, // code hashes mapped to first account with this code.
 	missing_code: HashMap<H256, Vec<H256>>, // maps code hashes to lists of accounts missing that code.
-	bloom: Bloom,
 	known_storage_roots: HashMap<H256, H256>, // maps account hashes to last known storage root. Only filled for last account per chunk.
 }
 
@@ -390,7 +389,6 @@ impl StateRebuilder {
 			state_root: KECCAK_NULL_RLP,
 			known_code: HashMap::new(),
 			missing_code: HashMap::new(),
-			bloom: StateDB::load_bloom(&*db),
 			known_storage_roots: HashMap::new(),
 		}
 	}
@@ -398,7 +396,6 @@ impl StateRebuilder {
 	/// Feed an uncompressed state chunk into the rebuilder.
 	pub fn feed(&mut self, chunk: &[u8], flag: &AtomicBool) -> Result<(), EthcoreError> {
 		let rlp = Rlp::new(chunk);
-		let empty_rlp = StateAccount::new_basic(U256::zero(), U256::zero()).rlp();
 		let mut pairs = Vec::with_capacity(rlp.item_count()?);
 
 		// initialize the pairs vector with empty values so we have slots to write into.
@@ -427,8 +424,6 @@ impl StateRebuilder {
 			self.known_code.insert(code_hash, first_with);
 		}
 
-		let backing = self.db.backing().clone();
-
 		// batch trie writes
 		{
 			let mut account_trie = if self.state_root != KECCAK_NULL_RLP {
@@ -439,19 +434,12 @@ impl StateRebuilder {
 
 			for (hash, thin_rlp) in pairs {
 				if !flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
-
-				if &thin_rlp[..] != &empty_rlp[..] {
-					self.bloom.set(hash.as_bytes());
-				}
 				account_trie.insert(hash.as_bytes(), &thin_rlp)?;
 			}
 		}
 
-		let bloom_journal = self.bloom.drain_journal();
-		let mut batch = backing.transaction();
-		StateDB::commit_bloom(&mut batch, bloom_journal)?;
-		self.db.inject(&mut batch)?;
-		backing.write_buffered(batch);
+		let batch = self.db.drain_transaction_overlay()?;
+		self.db.backing().write(batch)?;
 		Ok(())
 	}
 
@@ -464,7 +452,7 @@ impl StateRebuilder {
 
 		let mut batch = self.db.backing().transaction();
 		self.db.journal_under(&mut batch, era, &id)?;
-		self.db.backing().write_buffered(batch);
+		self.db.backing().write(batch)?;
 
 		Ok(self.db)
 	}

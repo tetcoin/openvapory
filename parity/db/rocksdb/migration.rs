@@ -18,13 +18,12 @@ use std::fs;
 use std::io::{Read, Write, Error as IoError, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::fmt::{Display, Formatter, Error as FmtError};
-use super::migration_rocksdb::{Manager as MigrationManager, Config as MigrationConfig, ChangeColumns};
-use super::kvdb_rocksdb::{CompactionProfile, DatabaseConfig};
+use super::migration_rocksdb::{Manager as MigrationManager, Config as MigrationConfig, ChangeColumns, VacuumAccountsBloom};
+use super::kvdb_rocksdb::{CompactionProfile};
 use ethcore::client::DatabaseCompactionProfile;
-use types::errors::EthcoreError;
+use ethcore_db::NUM_COLUMNS;
 
 use super::helpers;
-use super::blooms::migrate_blooms;
 
 /// The migration from v10 to v11.
 /// Adds a column for node info.
@@ -50,12 +49,19 @@ pub const TO_V14: ChangeColumns = ChangeColumns {
 	version: 14,
 };
 
+/// The migration from v14 to v15.
+/// Removes all entries from the COL_ACCOUNTS_BLOOM column
+/// NOTE: column 5 is still there, but has no data.
+pub const TO_V15: VacuumAccountsBloom = VacuumAccountsBloom {
+	column_to_vacuum: 5,
+	columns: NUM_COLUMNS,
+	version: 15,
+};
+
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 14;
-/// A version of database at which blooms-db was introduced
-const BLOOMS_DB_VERSION: u32 = 13;
+const CURRENT_VERSION: u32 = 15;
 /// Defines how many items are migrated to the new version of database at once.
 const BATCH_SIZE: usize = 1024;
 /// Version file name.
@@ -70,8 +76,6 @@ pub enum Error {
 	FutureDBVersion,
 	/// Migration is not possible.
 	MigrationImpossible,
-	/// Blooms-db migration error.
-	BloomsDB(EthcoreError),
 	/// Migration was completed succesfully,
 	/// but there was a problem with io.
 	Io(IoError),
@@ -83,7 +87,6 @@ impl Display for Error {
 			Error::UnknownDatabaseVersion => "Current database version cannot be read".into(),
 			Error::FutureDBVersion => "Database was created with newer client version. Upgrade your client or delete DB and resync.".into(),
 			Error::MigrationImpossible => format!("Database migration to version {} is not possible.", CURRENT_VERSION),
-			Error::BloomsDB(ref err) => format!("blooms-db migration error: {}", err),
 			Error::Io(ref err) => format!("Unexpected io error on DB migration: {}.", err),
 		};
 
@@ -156,6 +159,7 @@ fn consolidated_database_migrations(compaction_profile: &CompactionProfile) -> R
 	manager.add_migration(TO_V11).map_err(|_| Error::MigrationImpossible)?;
 	manager.add_migration(TO_V12).map_err(|_| Error::MigrationImpossible)?;
 	manager.add_migration(TO_V14).map_err(|_| Error::MigrationImpossible)?;
+	manager.add_migration(TO_V15).map_err(|_| Error::MigrationImpossible)?;
 	Ok(manager)
 }
 
@@ -175,7 +179,10 @@ fn migrate_database(version: u32, db_path: &Path, mut migrations: MigrationManag
 
 	// completely in-place migration leads to the paths being equal.
 	// in that case, no need to shuffle directories.
-	if temp_path == db_path { return Ok(()) }
+	if temp_path == db_path {
+		trace!(target: "migrate", "In-place migration ran; leaving old database in place.");
+		return Ok(())
+	}
 
 	// create backup
 	fs::rename(&db_path, &backup_path)?;
@@ -219,19 +226,6 @@ pub fn migrate(path: &Path, compaction_profile: &DatabaseCompactionProfile) -> R
 	if version < CURRENT_VERSION && exists(&db_path) {
 		info!(target: "migration", "Migrating database from version {} to {}", version, CURRENT_VERSION);
 		migrate_database(version, &db_path, consolidated_database_migrations(&compaction_profile)?)?;
-
-		if version < BLOOMS_DB_VERSION {
-			info!(target: "migration", "Migrating blooms to blooms-db...");
-			let db_config = DatabaseConfig {
-				max_open_files: 64,
-				compaction: compaction_profile,
-				columns: ethcore_db::NUM_COLUMNS,
-				..Default::default()
-			};
-
-			migrate_blooms(&db_path, &db_config).map_err(Error::BloomsDB)?;
-		}
-
 		info!(target: "migration", "Migration finished");
 	}
 

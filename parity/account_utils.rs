@@ -48,11 +48,11 @@ mod accounts {
 		Ok(None)
 	}
 
-	pub fn private_tx_signer(_account_provider: Arc<AccountProvider>, _passwords: &[Password]) -> Result<Arc<::ethcore_private_tx::Signer>, String> {
+	pub fn private_tx_signer(_account_provider: Arc<AccountProvider>, _passwords: &[Password]) -> Result<Arc<dyn (::ethcore_private_tx::Signer)>, String> {
 		Ok(Arc::new(::ethcore_private_tx::DummySigner))
 	}
 
-	pub fn accounts_list(_account_provider: Arc<AccountProvider>) -> Arc<Fn() -> Vec<Address> + Send + Sync> {
+	pub fn accounts_list(_account_provider: Arc<AccountProvider>) -> Arc<dyn Fn() -> Vec<Address> + Send + Sync> {
 		Arc::new(|| vec![])
 	}
 }
@@ -81,7 +81,7 @@ mod accounts {
 		let account_settings = AccountProviderSettings {
 			unlock_keep_secret: cfg.enable_fast_unlock,
 			blacklisted_accounts: 	match *spec {
-				SpecType::Mordor | SpecType::Ropsten | SpecType::Kovan | SpecType::Goerli | SpecType::Kotti | SpecType::Sokol | SpecType::Dev => vec![],
+				SpecType::Ropsten | SpecType::Kovan | SpecType::Goerli | SpecType::Sokol | SpecType::Dev => vec![],
 				_ => vec![
 					H160::from_str("00a329c0648769a73afac7f9381e08fb43dbea72").expect("the string is valid hex; qed"),
 				],

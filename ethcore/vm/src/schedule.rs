@@ -71,8 +71,10 @@ pub struct Schedule {
 	pub log_topic_gas: usize,
 	/// Gas price for `CREATE` opcode
 	pub create_gas: usize,
-	/// Gas price for `*CALL*` opcodes
+	/// Gas price for `*CALL*` opcodes, EXCEPT for staticcall to precompiles
 	pub call_gas: usize,
+	/// Gas price for staticcall to precompiles
+	pub staticcall_precompile_gas: usize,
 	/// Stipend for transfer for `CALL|CALLCODE` opcode when `value>0`
 	pub call_stipend: usize,
 	/// Additional gas required for value transfer (`CALL|CALLCODE`)
@@ -130,6 +132,8 @@ pub struct Schedule {
 	pub have_chain_id: bool,
 	/// SELFBALANCE opcode enabled.
 	pub have_selfbalance: bool,
+	/// BEGINSUB, JUMPSUB and RETURNSUB opcodes enabled.
+	pub have_subs: bool,
 	/// Kill basic accounts below this balance if touched.
 	pub kill_dust: CleanDustMode,
 	/// Enable EIP-1283 rules
@@ -232,6 +236,7 @@ impl Schedule {
 			have_chain_id: false,
 			have_selfbalance: false,
 			have_extcodehash: false,
+			have_subs: false,
 			stack_limit: 1024,
 			max_depth: 1024,
 			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
@@ -250,6 +255,7 @@ impl Schedule {
 			log_topic_gas: 375,
 			create_gas: 32000,
 			call_gas: 700,
+			staticcall_precompile_gas: 700,
 			call_stipend: 2300,
 			call_value_transfer_gas: 9000,
 			call_new_account_gas: 25000,
@@ -312,6 +318,14 @@ impl Schedule {
 		schedule
 	}
 
+	/// Schedule for the Berlin fork of the Ethereum main net.
+	pub fn new_berlin() -> Schedule {
+		let mut schedule = Self::new_istanbul();
+		schedule.staticcall_precompile_gas = 40; // EIPs 2046 1352
+		schedule.have_subs = true; // EIP 2315
+		schedule
+	}
+	
 	fn new(efcd: bool, hdc: bool, tcg: usize) -> Schedule {
 		Schedule {
 			exceptional_failed_code_deposit: efcd,
@@ -323,6 +337,7 @@ impl Schedule {
 			have_chain_id: false,
 			have_selfbalance: false,
 			have_extcodehash: false,
+			have_subs: false,
 			stack_limit: 1024,
 			max_depth: 1024,
 			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
@@ -341,6 +356,7 @@ impl Schedule {
 			log_topic_gas: 375,
 			create_gas: 32000,
 			call_gas: 40,
+			staticcall_precompile_gas: 40,
 			call_stipend: 2300,
 			call_value_transfer_gas: 9000,
 			call_new_account_gas: 25000,

@@ -34,7 +34,6 @@ use crate::configuration;
 #[derive(Debug, PartialEq)]
 pub enum SpecType {
 	Foundation,
-	Classic,
 	Poanet,
 	Xdai,
 	Volta,
@@ -44,12 +43,11 @@ pub enum SpecType {
 	Mix,
 	Callisto,
 	EtherCore,
-	Mordor,
 	Ropsten,
 	Kovan,
 	Rinkeby,
 	Goerli,
-	Kotti,
+	YOLOv1,
 	Sokol,
 	Evantestcore,
 	Evancore,
@@ -69,7 +67,6 @@ impl str::FromStr for SpecType {
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let spec = match s {
 			"eth" | "ethereum"  | "foundation" | "mainnet" => SpecType::Foundation,
-			"etc" | "classic" => SpecType::Classic,
 			"poanet" | "poacore" => SpecType::Poanet,
 			"xdai" => SpecType::Xdai,
 			"volta" => SpecType::Volta,
@@ -79,12 +76,11 @@ impl str::FromStr for SpecType {
 			"mix" => SpecType::Mix,
 			"callisto" => SpecType::Callisto,
 			"ethercore" => SpecType::EtherCore,
-			"mordor" | "classic-testnet" => SpecType::Mordor,
 			"ropsten" => SpecType::Ropsten,
 			"kovan" => SpecType::Kovan,
 			"rinkeby" => SpecType::Rinkeby,
 			"goerli" | "görli" | "testnet" => SpecType::Goerli,
-			"kotti" => SpecType::Kotti,
+			"yolo" | "yolov1" => SpecType::YOLOv1,
 			"sokol" | "poasokol" => SpecType::Sokol,
 			"evantestcore" => SpecType::Evantestcore,
 			"evancore" => SpecType::Evancore,
@@ -99,7 +95,6 @@ impl fmt::Display for SpecType {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.write_str(match *self {
 			SpecType::Foundation => "foundation",
-			SpecType::Classic => "classic",
 			SpecType::Poanet => "poanet",
 			SpecType::Xdai => "xdai",
 			SpecType::Volta => "volta",
@@ -109,12 +104,11 @@ impl fmt::Display for SpecType {
 			SpecType::Mix => "mix",
 			SpecType::Callisto => "callisto",
 			SpecType::EtherCore => "ethercore",
-			SpecType::Mordor => "mordor",
 			SpecType::Ropsten => "ropsten",
 			SpecType::Kovan => "kovan",
 			SpecType::Rinkeby => "rinkeby",
 			SpecType::Goerli => "goerli",
-			SpecType::Kotti => "kotti",
+			SpecType::YOLOv1 => "yolov1",
 			SpecType::Sokol => "sokol",
 			SpecType::Evantestcore => "evantestcore",
 			SpecType::Evancore => "evancore",
@@ -129,7 +123,6 @@ impl SpecType {
 		let params = params.into();
 		match *self {
 			SpecType::Foundation => Ok(spec::new_foundation(params)),
-			SpecType::Classic => Ok(spec::new_classic(params)),
 			SpecType::Poanet => Ok(spec::new_poanet(params)),
 			SpecType::Xdai => Ok(spec::new_xdai(params)),
 			SpecType::Volta => Ok(spec::new_volta(params)),
@@ -139,12 +132,11 @@ impl SpecType {
 			SpecType::Mix => Ok(spec::new_mix(params)),
 			SpecType::Callisto => Ok(spec::new_callisto(params)),
 			SpecType::EtherCore => Ok(spec::new_ethercore(params)),
-			SpecType::Mordor => Ok(spec::new_mordor(params)),
 			SpecType::Ropsten => Ok(spec::new_ropsten(params)),
 			SpecType::Kovan => Ok(spec::new_kovan(params)),
 			SpecType::Rinkeby => Ok(spec::new_rinkeby(params)),
 			SpecType::Goerli => Ok(spec::new_goerli(params)),
-			SpecType::Kotti => Ok(spec::new_kotti(params)),
+			SpecType::YOLOv1 => Ok(spec::new_yolov1(params)),
 			SpecType::Sokol => Ok(spec::new_sokol(params)),
 			SpecType::Evantestcore => Ok(spec::new_evantestcore(params)),
 			SpecType::Evancore => Ok(spec::new_evancore(params)),
@@ -158,7 +150,6 @@ impl SpecType {
 
 	pub fn legacy_fork_name(&self) -> Option<String> {
 		match *self {
-			SpecType::Classic => Some("classic".to_owned()),
 			SpecType::Musicoin => Some("musicoin".to_owned()),
 			_ => None,
 		}
@@ -385,8 +376,6 @@ mod tests {
 		assert_eq!(SpecType::Foundation, "ethereum".parse().unwrap());
 		assert_eq!(SpecType::Foundation, "foundation".parse().unwrap());
 		assert_eq!(SpecType::Foundation, "mainnet".parse().unwrap());
-		assert_eq!(SpecType::Classic, "etc".parse().unwrap());
-		assert_eq!(SpecType::Classic, "classic".parse().unwrap());
 		assert_eq!(SpecType::Poanet, "poanet".parse().unwrap());
 		assert_eq!(SpecType::Poanet, "poacore".parse().unwrap());
 		assert_eq!(SpecType::Xdai, "xdai".parse().unwrap());
@@ -398,15 +387,14 @@ mod tests {
 		assert_eq!(SpecType::Mix, "mix".parse().unwrap());
 		assert_eq!(SpecType::Callisto, "callisto".parse().unwrap());
 		assert_eq!(SpecType::EtherCore, "ethercore".parse().unwrap());
-		assert_eq!(SpecType::Mordor, "mordor".parse().unwrap());
-		assert_eq!(SpecType::Mordor, "classic-testnet".parse().unwrap());
 		assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
 		assert_eq!(SpecType::Kovan, "kovan".parse().unwrap());
 		assert_eq!(SpecType::Rinkeby, "rinkeby".parse().unwrap());
 		assert_eq!(SpecType::Goerli, "goerli".parse().unwrap());
 		assert_eq!(SpecType::Goerli, "görli".parse().unwrap());
 		assert_eq!(SpecType::Goerli, "testnet".parse().unwrap());
-		assert_eq!(SpecType::Kotti, "kotti".parse().unwrap());
+		assert_eq!(SpecType::YOLOv1, "yolo".parse().unwrap());
+		assert_eq!(SpecType::YOLOv1, "yolov1".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "sokol".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "poasokol".parse().unwrap());
 		assert_eq!(SpecType::Evantestcore, "evantestcore".parse().unwrap());
@@ -421,7 +409,6 @@ mod tests {
 	#[test]
 	fn test_spec_type_display() {
 		assert_eq!(format!("{}", SpecType::Foundation), "foundation");
-		assert_eq!(format!("{}", SpecType::Classic), "classic");
 		assert_eq!(format!("{}", SpecType::Poanet), "poanet");
 		assert_eq!(format!("{}", SpecType::Xdai), "xdai");
 		assert_eq!(format!("{}", SpecType::Volta), "volta");
@@ -431,12 +418,11 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Mix), "mix");
 		assert_eq!(format!("{}", SpecType::Callisto), "callisto");
 		assert_eq!(format!("{}", SpecType::EtherCore), "ethercore");
-		assert_eq!(format!("{}", SpecType::Mordor), "mordor");
 		assert_eq!(format!("{}", SpecType::Ropsten), "ropsten");
 		assert_eq!(format!("{}", SpecType::Kovan), "kovan");
 		assert_eq!(format!("{}", SpecType::Rinkeby), "rinkeby");
 		assert_eq!(format!("{}", SpecType::Goerli), "goerli");
-		assert_eq!(format!("{}", SpecType::Kotti), "kotti");
+		assert_eq!(format!("{}", SpecType::YOLOv1), "yolov1");
 		assert_eq!(format!("{}", SpecType::Sokol), "sokol");
 		assert_eq!(format!("{}", SpecType::Evantestcore), "evantestcore");
 		assert_eq!(format!("{}", SpecType::Evancore), "evancore");

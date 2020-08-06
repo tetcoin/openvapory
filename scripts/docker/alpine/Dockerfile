@@ -11,6 +11,7 @@ RUN apk add --no-cache \
   linux-headers \
   perl \
   rust \
+  git \
   clang-dev \
   llvm-dev
 
@@ -25,10 +26,13 @@ FROM alpine:edge
 # show backtraces
 ENV RUST_BACKTRACE 1
 
+# curl and jq are installed to help create health and readiness checks on Kubernetes
 RUN apk add --no-cache \
   libstdc++ \
   eudev-libs \
-  libgcc
+  libgcc \
+  curl \
+  jq
 
 RUN addgroup -g 1000 openethereum \
   && adduser -u 1000 -G openethereum -s /bin/sh -D openethereum
@@ -42,4 +46,4 @@ WORKDIR /home/openethereum
 RUN mkdir -p /home/openethereum/.local/share/io.parity.ethereum/
 COPY --chown=openethereum:openethereum --from=builder /openethereum/target/x86_64-alpine-linux-musl/release/openethereum ./
 
-ENTRYPOINT ["./openethereum"]
+ENTRYPOINT ["/home/openethereum/openethereum"]

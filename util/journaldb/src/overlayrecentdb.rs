@@ -394,14 +394,16 @@ impl JournalDB for OverlayRecentDB {
 			journal_overlay.earliest_era = Some(end_era + 1);
 		}
 
+		//garbage collection on MemoryDB and journal HashMaps;
+		journal_overlay.backing_overlay.shrink_to_fit();
+		journal_overlay.journal.shrink_to_fit();
+
 		Ok(ops as u32)
 	}
 
-	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
-		let mut ops = 0;
+	fn drain_transaction_overlay(&mut self) -> io::Result<DBTransaction> {
+		let mut batch = DBTransaction::new();
 		for (key, (value, rc)) in self.transaction_overlay.drain() {
-			if rc != 0 { ops += 1 }
-
 			match rc {
 				0 => {}
 				_ if rc > 0 => {
@@ -417,7 +419,7 @@ impl JournalDB for OverlayRecentDB {
 			}
 		}
 
-		Ok(ops)
+		Ok(batch)
 	}
 
 	fn state(&self, key: &H256) -> Option<Bytes> {
@@ -507,7 +509,7 @@ mod tests {
 	use super::*;
 	use hash_db::{HashDB, EMPTY_PREFIX};
 	use kvdb_memorydb;
-	use crate::{JournalDB, inject_batch, commit_batch};
+	use crate::{JournalDB, drain_overlay, commit_batch};
 
 	fn new_db() -> OverlayRecentDB {
 		let backing = Arc::new(kvdb_memorydb::create(1));
@@ -1026,11 +1028,11 @@ mod tests {
 	fn inject() {
 		let mut jdb = new_db();
 		let key = jdb.insert(EMPTY_PREFIX, b"dog");
-		inject_batch(&mut jdb).unwrap();
+		drain_overlay(&mut jdb).unwrap();
 
 		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), b"dog".to_vec());
 		jdb.remove(&key, EMPTY_PREFIX);
-		inject_batch(&mut jdb).unwrap();
+		drain_overlay(&mut jdb).unwrap();
 
 		assert!(jdb.get(&key, EMPTY_PREFIX).is_none());
 	}
@@ -1047,28 +1049,28 @@ mod tests {
 		let _key = jdb.insert(EMPTY_PREFIX, b"hello!");
 		let mut batch = jdb.backing().transaction();
 		jdb.journal_under(&mut batch, 0, &keccak(b"0")).unwrap();
-		jdb.backing().write_buffered(batch);
+		jdb.backing().write(batch).expect("rocksdb works");
 
 		assert_eq!(jdb.earliest_era(), Some(0));
 
 		// second journalled era.
 		let mut batch = jdb.backing().transaction();
 		jdb.journal_under(&mut batch, 1, &keccak(b"1")).unwrap();
-		jdb.backing().write_buffered(batch);
+		jdb.backing().write(batch).expect("rocksdb works");
 
 		assert_eq!(jdb.earliest_era(), Some(0));
 
 		// single journalled era.
 		let mut batch = jdb.backing().transaction();
 		jdb.mark_canonical(&mut batch, 0, &keccak(b"0")).unwrap();
-		jdb.backing().write_buffered(batch);
+		jdb.backing().write(batch).expect("rocksdb works");
 
 		assert_eq!(jdb.earliest_era(), Some(1));
 
 		// no journalled eras.
 		let mut batch = jdb.backing().transaction();
 		jdb.mark_canonical(&mut batch, 1, &keccak(b"1")).unwrap();
-		jdb.backing().write_buffered(batch);
+		jdb.backing().write(batch).expect("rocksdb works");
 
 		assert_eq!(jdb.earliest_era(), Some(1));
 
