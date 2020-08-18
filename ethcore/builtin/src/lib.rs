@@ -244,21 +244,21 @@ pub struct Bls12ConstOperations {
 /// Discount table for multiexponentiation (Peppinger algorithm)
 /// Later on is normalized using the divisor
 pub const BLS12_MULTIEXP_DISCOUNTS_TABLE: [[u64; 2]; BLS12_MULTIEXP_PAIRS_FOR_MAX_DISCOUNT] = [
-	[1, 1200], [2, 888], [3, 764], [4, 641], [5, 594], [6, 547], [7, 500], [8, 453], 
-	[9, 438], [10, 423], [11, 408], [12, 394], [13, 379], [14, 364], [15, 349], [16, 334], 
-	[17, 330], [18, 326], [19, 322], [20, 318], [21, 314], [22, 310], [23, 306], [24, 302], 
-	[25, 298], [26, 294], [27, 289], [28, 285], [29, 281], [30, 277], [31, 273], [32, 269], 
-	[33, 268], [34, 266], [35, 265], [36, 263], [37, 262], [38, 260], [39, 259], [40, 257], 
-	[41, 256], [42, 254], [43, 253], [44, 251], [45, 250], [46, 248], [47, 247], [48, 245], 
-	[49, 244], [50, 242], [51, 241], [52, 239], [53, 238], [54, 236], [55, 235], [56, 233], 
-	[57, 232], [58, 231], [59, 229], [60, 228], [61, 226], [62, 225], [63, 223], [64, 222], 
-	[65, 221], [66, 220], [67, 219], [68, 219], [69, 218], [70, 217], [71, 216], [72, 216], 
-	[73, 215], [74, 214], [75, 213], [76, 213], [77, 212], [78, 211], [79, 211], [80, 210], 
-	[81, 209], [82, 208], [83, 208], [84, 207], [85, 206], [86, 205], [87, 205], [88, 204], 
-	[89, 203], [90, 202], [91, 202], [92, 201], [93, 200], [94, 199], [95, 199], [96, 198], 
-	[97, 197], [98, 196], [99, 196], [100, 195], [101, 194], [102, 193], [103, 193], [104, 192], 
-	[105, 191], [106, 191], [107, 190], [108, 189], [109, 188], [110, 188], [111, 187], [112, 186], 
-	[113, 185], [114, 185], [115, 184], [116, 183], [117, 182], [118, 182], [119, 181], [120, 180], 
+	[1, 1200], [2, 888], [3, 764], [4, 641], [5, 594], [6, 547], [7, 500], [8, 453],
+	[9, 438], [10, 423], [11, 408], [12, 394], [13, 379], [14, 364], [15, 349], [16, 334],
+	[17, 330], [18, 326], [19, 322], [20, 318], [21, 314], [22, 310], [23, 306], [24, 302],
+	[25, 298], [26, 294], [27, 289], [28, 285], [29, 281], [30, 277], [31, 273], [32, 269],
+	[33, 268], [34, 266], [35, 265], [36, 263], [37, 262], [38, 260], [39, 259], [40, 257],
+	[41, 256], [42, 254], [43, 253], [44, 251], [45, 250], [46, 248], [47, 247], [48, 245],
+	[49, 244], [50, 242], [51, 241], [52, 239], [53, 238], [54, 236], [55, 235], [56, 233],
+	[57, 232], [58, 231], [59, 229], [60, 228], [61, 226], [62, 225], [63, 223], [64, 222],
+	[65, 221], [66, 220], [67, 219], [68, 219], [69, 218], [70, 217], [71, 216], [72, 216],
+	[73, 215], [74, 214], [75, 213], [76, 213], [77, 212], [78, 211], [79, 211], [80, 210],
+	[81, 209], [82, 208], [83, 208], [84, 207], [85, 206], [86, 205], [87, 205], [88, 204],
+	[89, 203], [90, 202], [91, 202], [92, 201], [93, 200], [94, 199], [95, 199], [96, 198],
+	[97, 197], [98, 196], [99, 196], [100, 195], [101, 194], [102, 193], [103, 193], [104, 192],
+	[105, 191], [106, 191], [107, 190], [108, 189], [109, 188], [110, 188], [111, 187], [112, 186],
+	[113, 185], [114, 185], [115, 184], [116, 183], [117, 182], [118, 182], [119, 181], [120, 180],
 	[121, 179], [122, 179], [123, 178], [124, 177], [125, 176], [126, 176], [127, 175], [128, 174]
 ];
 
@@ -497,6 +497,14 @@ enum EthereumBuiltin {
 	Bls12MapFpToG1(Bls12MapFpToG1),
 	/// bls12_381 fp2 to g2 mapping
 	Bls12MapFp2ToG2(Bls12MapFp2ToG2),
+	/// parse_substrate_header
+	ParseSubstrateHeader(ParseSubstrateHeader),
+	/// get_substrate_header_signal
+	GetSubstrateHeaderSignal(GetSubstrateHeaderSignal),
+	/// verify_substrate_finality_proof
+	VerifySubstrateFinalityProof(VerifySubstrateFinalityProof),
+	/// my_test
+	MyTest(MyTest),
 }
 
 impl FromStr for EthereumBuiltin {
@@ -522,6 +530,10 @@ impl FromStr for EthereumBuiltin {
 			"bls12_381_pairing" => Ok(EthereumBuiltin::Bls12Pairing(Bls12Pairing)),
 			"bls12_381_fp_to_g1" => Ok(EthereumBuiltin::Bls12MapFpToG1(Bls12MapFpToG1)),
 			"bls12_381_fp2_to_g2" => Ok(EthereumBuiltin::Bls12MapFp2ToG2(Bls12MapFp2ToG2)),
+			"parse_substrate_header" => Ok(EthereumBuiltin::ParseSubstrateHeader(ParseSubstrateHeader)),
+			"get_substrate_header_signal" => Ok(EthereumBuiltin::GetSubstrateHeaderSignal(GetSubstrateHeaderSignal)),
+			"verify_substrate_finality_proof" => Ok(EthereumBuiltin::VerifySubstrateFinalityProof(VerifySubstrateFinalityProof)),
+			"my_test" => Ok(EthereumBuiltin::MyTest(MyTest)),
 			_ => return Err(EthcoreError::Msg(format!("invalid builtin name: {}", name))),
 		}
 	}
@@ -548,6 +560,10 @@ impl Implementation for EthereumBuiltin {
 			EthereumBuiltin::Bls12Pairing(inner) => inner.execute(input, output),
 			EthereumBuiltin::Bls12MapFpToG1(inner) => inner.execute(input, output),
 			EthereumBuiltin::Bls12MapFp2ToG2(inner) => inner.execute(input, output),
+			EthereumBuiltin::ParseSubstrateHeader(inner) => inner.execute(input, output),
+			EthereumBuiltin::GetSubstrateHeaderSignal(inner) => inner.execute(input, output),
+			EthereumBuiltin::VerifySubstrateFinalityProof(inner) => inner.execute(input, output),
+			EthereumBuiltin::MyTest(inner) => inner.execute(input, output),
 		}
 	}
 }
@@ -623,6 +639,22 @@ pub struct Bls12MapFpToG1;
 #[derive(Debug)]
 /// The Bls12MapFp2ToG2 builtin.
 pub struct Bls12MapFp2ToG2;
+
+#[derive(Debug)]
+/// The ParseSubstrateHeader builtin
+pub struct ParseSubstrateHeader;
+
+#[derive(Debug)]
+/// The GetSubstrateHeaderSignal builtin
+pub struct GetSubstrateHeaderSignal;
+
+#[derive(Debug)]
+/// The VerifySubstrateFinalityProof builtin
+pub struct VerifySubstrateFinalityProof;
+
+#[derive(Debug)]
+/// The MyTest builtin
+pub struct MyTest;
 
 impl Implementation for Identity {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
@@ -939,6 +971,21 @@ impl Bn128Pairing {
 	}
 }
 
+impl Implementation for GetSubstrateHeaderSignal {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		let header = ethereum_contract_builtin::parse_substrate_header(input)
+			.map_err(|_error| "Failed to parse Substrate header")?;
+
+		match header.signal {
+			Some(signal) => {
+				output.write(0, &signal.validators);
+				Ok(())
+			},
+			None => Err("Signal is missing from Substrate header"),
+		}
+	}
+}
+
 impl Implementation for Bls12G1Add {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		let result = EIP2537Executor::g1_add(input);
@@ -1012,6 +1059,109 @@ impl Implementation for Bls12G2Add {
 				Err("Bls12G2Add error")
 			}
 		}
+	}
+}
+
+impl Implementation for ParseSubstrateHeader {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		let header = ethereum_contract_builtin::parse_substrate_header(input)
+			.map_err(|_error| "Failed to parse Substrate header")?;
+
+		let mut raw_number = [0u8; 32];
+		ethereum_contract_builtin::from_substrate_block_number(header.number)
+			.map_err(|_| "Failed to serialize Substrate block number")?
+			.to_big_endian(&mut raw_number);
+
+		output.write(0, &header.hash[..]);
+		output.write(0x20, &header.parent_hash[..]);
+		output.write(0x40, &raw_number);
+		match header.signal {
+			Some(signal) => {
+				let mut raw_signal_delay = [0u8; 32];
+				ethereum_contract_builtin::from_substrate_block_number(signal.delay)
+					.map_err(|_| "Failed to serialize Substrate signal delay")?
+					.to_big_endian(&mut raw_signal_delay);
+				output.write(0x60, &raw_signal_delay);
+
+				let mut raw_signal_validators_size = [0u8; 32];
+				U256::from(signal.validators.len() as u64)
+					.to_big_endian(&mut raw_signal_validators_size);
+				output.write(0x80, &raw_signal_validators_size);
+			},
+			None => {
+				let raw_zero = [0u8; 32];
+				output.write(0x60, &raw_zero);
+				output.write(0x80, &raw_zero);
+			},
+		}
+
+		Ok(())
+	}
+}
+
+impl Implementation for VerifySubstrateFinalityProof {
+	fn execute(&self, input: &[u8], _output: &mut BytesRef) -> Result<(), &'static str> {
+		const DECODE_PROOF: &'static str = "ethabi::encode ensures that arguments are of given type; qed";
+
+		let args = ethabi::decode(
+			&[
+				ethabi::ParamType::Uint(256),
+				ethabi::ParamType::FixedBytes(32),
+				ethabi::ParamType::Uint(64),
+				ethabi::ParamType::Bytes,
+				ethabi::ParamType::Bytes,
+			],
+			input,
+		).map_err(|err| {
+			warn!(
+				target: "bridge-builtin",
+				"Failed to decode verify_substrate_finality_proof arguments: {}",
+				err,
+			);
+
+			"Failed to decode arguments"
+		})?;
+		// using two different primitive-types :/
+		let mut raw_finality_target_number = [0u8; 32];
+		args[0].clone().to_uint().expect(DECODE_PROOF).to_big_endian(&mut raw_finality_target_number);
+		let finality_target_number = ethereum_contract_builtin::to_substrate_block_number(
+			raw_finality_target_number.into(),
+		).map_err(|_| "Failed to parse Substrate block number")?;
+
+		let mut finality_target_hash = [0u8; 32];
+		finality_target_hash.copy_from_slice(&args[1].clone().to_fixed_bytes().expect(DECODE_PROOF));
+		let finality_target_hash = finality_target_hash.into();
+		let best_set_id = args[2].clone().to_uint().expect(DECODE_PROOF);
+		let best_set_id = match best_set_id == best_set_id.low_u64().into() {
+			true => best_set_id.low_u64(),
+			false => {
+				warn!(
+					target: "bridge-builtin",
+					"Failed to decode best_set_id: {} != {}",
+					best_set_id,
+					best_set_id.low_u64(),
+				);
+				return Err("Invalid best set id");
+			},
+		};
+		let raw_best_set = args[3].clone().to_bytes().expect(DECODE_PROOF);
+		let raw_finality_proof = args[4].clone().to_bytes().expect(DECODE_PROOF);
+
+		ethereum_contract_builtin::verify_substrate_finality_proof(
+			finality_target_number,
+			finality_target_hash,
+			best_set_id,
+			&raw_best_set,
+			&raw_finality_proof,
+		).map_err(|_| "Invalid finality proof provided")
+	}
+}
+
+impl Implementation for MyTest {
+	fn execute(&self, input: &[u8], _output: &mut BytesRef) -> Result<(), &'static str> {
+		println!("=== MYTEST: {:?}", input);
+
+		Ok(())
 	}
 }
 
@@ -1109,7 +1259,6 @@ impl Implementation for Bls12MapFp2ToG2 {
 		}
 	}
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -1960,7 +2109,7 @@ mod tests {
 		f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 		assert_eq!(&output[..], &expected[..]);
 	}
-	
+
 	#[test]
 	fn bls12_381_g2_add() {
 		let f = Builtin {
