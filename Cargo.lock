@@ -726,9 +726,53 @@ dependencies = [
 ]
 
 [[package]]
+name = "bp-currency-exchange"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "parity-scale-codec",
+ "sp-api",
+ "sp-std",
+]
+
+[[package]]
+name = "bp-eth-poa"
+version = "0.1.0"
+dependencies = [
+ "ethbloom 0.8.1",
+ "fixed-hash 0.5.2",
+ "hash-db",
+ "impl-rlp",
+ "impl-serde 0.2.3",
+ "libsecp256k1",
+ "parity-bytes",
+ "parity-scale-codec",
+ "plain_hasher",
+ "primitive-types 0.7.2",
+ "rlp",
+ "serde",
+ "serde-big-array",
+ "sp-api",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "triehash",
+]
+
+[[package]]
+name = "bp-header-chain"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+]
+
+[[package]]
 name = "bridge-node-runtime"
 version = "0.1.0"
 dependencies = [
+ "bp-currency-exchange",
+ "bp-eth-poa",
+ "bp-header-chain",
  "frame-benchmarking",
  "frame-executive",
  "frame-support",
@@ -749,10 +793,8 @@ dependencies = [
  "serde",
  "sp-api",
  "sp-block-builder",
- "sp-bridge-eth-poa",
  "sp-consensus-aura",
  "sp-core",
- "sp-currency-exchange",
  "sp-inherents",
  "sp-io",
  "sp-offchain",
@@ -4834,12 +4876,12 @@ dependencies = [
 name = "pallet-bridge-currency-exchange"
 version = "0.1.0"
 dependencies = [
+ "bp-currency-exchange",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
  "serde",
- "sp-currency-exchange",
  "sp-runtime",
  "sp-std",
 ]
@@ -4848,13 +4890,14 @@ dependencies = [
 name = "pallet-bridge-eth-poa"
 version = "0.1.0"
 dependencies = [
+ "bp-eth-poa",
+ "bp-header-chain",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hex-literal 0.3.1",
  "parity-scale-codec",
  "serde",
- "sp-bridge-eth-poa",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -6884,9 +6927,9 @@ checksum = "f638d531eccd6e23b980caf34876660d38e265409d8e99b397ab71eb3612fad0"
 
 [[package]]
 name = "serde"
-version = "1.0.114"
+version = "1.0.115"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5317f7588f0a5078ee60ef675ef96735a1442132dc645eb1d12c018620ed8cd3"
+checksum = "e54c9a88f2da7238af84b5101443f0c0d0a3bbdc455e34a5c9497b1903ed55d5"
 dependencies = [
  "serde_derive",
 ]
@@ -6903,9 +6946,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.114"
+version = "1.0.115"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a0be94b04690fbaed37cddffc5c134bf537c8e3329d53e982fe04c374978f8e"
+checksum = "609feed1d0a73cc36a0182a840a9b37b4a82f0b1150369f0536a9e3f2a31dc48"
 dependencies = [
  "proc-macro2 1.0.19",
  "quote 1.0.3",
@@ -7340,30 +7383,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp-bridge-eth-poa"
-version = "0.1.0"
-dependencies = [
- "ethbloom 0.8.1",
- "fixed-hash 0.5.2",
- "hash-db",
- "impl-rlp",
- "impl-serde 0.2.3",
- "libsecp256k1",
- "parity-bytes",
- "parity-scale-codec",
- "plain_hasher",
- "primitive-types 0.7.2",
- "rlp",
- "serde",
- "serde-big-array",
- "sp-api",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "triehash",
-]
-
-[[package]]
 name = "sp-consensus"
 version = "0.8.0-rc5"
 source = "git+https://github.com/paritytech/substrate/?tag=v2.0.0-rc5#e00d78cb1c354001d868fa66938a827a432dc530"
@@ -7443,16 +7462,6 @@ dependencies = [
  "twox-hash",
  "wasmi 0.6.2",
  "zeroize",
-]
-
-[[package]]
-name = "sp-currency-exchange"
-version = "0.1.0"
-dependencies = [
- "frame-support",
- "parity-scale-codec",
- "sp-api",
- "sp-std",
 ]
 
 [[package]]
